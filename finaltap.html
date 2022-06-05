@@ -1,0 +1,195 @@
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>美国贫困分布状况</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.23/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.23/"></script>
+
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+    <script>
+        require([ "esri/config","esri/Map", "esri/views/MapView", "esri/layers/FeatureLayer", "esri/widgets/Legend","esri/widgets/LayerList","esri/widgets/BasemapToggle", "esri/widgets/Search", "esri/views/SceneView"], (
+            esriConfig,
+            Map,
+            MapView,
+            FeatureLayer,
+            Legend,
+            LayerList,
+            BasemapToggle,
+            Search,
+            SceneView
+        ) => {
+            esriConfig.apiKey = "AAPK56e3ac027f044c4089d8ceec232fc05dYaOuzVRzm8tMRqvzOvDvIEevbqJ85yppn9PacU6cy4duurJrVK9wo_8BcWO8i8bi";
+            const defaultSym = {
+                type: "simple-fill", // autocasts as new SimpleFillSymbol()
+                outline: {
+                    // autocasts as new SimpleLineSymbol()
+                    color: [128, 128, 128, 0.2],
+                    width: "0.5px"
+                }
+            };
+
+            /*****************************************************************
+             * Set a color visual variable on the renderer. Color visual variables
+             * create continuous ramps that map low data values to weak or
+             * neutral colors and high data values to strong/deep colors. Features
+             * with data values in between the min and max data values are assigned
+             * a color proportionally between the min and max colors.
+             *****************************************************************/
+
+            const renderer = {
+                type: "simple", // autocasts as new SimpleRenderer()
+                symbol: defaultSym,
+                label: "美国城市",
+                visualVariables: [
+                    {
+                        type: "color",
+                        field: "POP_POVERTY",
+                        normalizationField: "TOTPOP_CY",
+                        legendOptions: {
+                            title: "城市贫困人口占比"
+                        },
+                        stops: [
+                            {
+                                value: 0.1,
+                                color: "#FFFCD4",
+                                label: "<10%"
+                            },
+                            {
+                                value: 0.3,
+                                color: "#350242",
+                                label: ">30%"
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            const povLayer = new FeatureLayer({
+                url:
+                    "https://services.arcgis.com/V6ZHFr6zdgNZuVG0/arcgis/rest/services/counties_politics_poverty/FeatureServer/0",
+                renderer: renderer,
+                title: "美国东南部城市的贫困可视化",
+                popupTemplate: {
+                    // autocasts as new PopupTemplate()
+                    title: "{COUNTY}, {STATE}",
+                    content: "其中{POP_POVERTY} of {TOTPOP_CY} 的群众生活水平在贫困线下.",
+                    fieldInfos: [
+                        {
+                            fieldName: "POP_POVERTY",
+                            format: {
+                                digitSeparator: true,
+                                places: 0
+                            }
+                        },
+                        {
+                            fieldName: "TOTPOP_CY",
+                            format: {
+                                digitSeparator: true,
+                                places: 0
+                            }
+                        }
+                    ]
+                }
+            });
+
+            const map = new Map({
+                basemap: "topo-vector",
+                layers: [povLayer]
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map: map,
+                center: [-85.0502, 33.125524],
+                zoom: 5
+            });
+            const view1 = new SceneView({
+                container: "view1Div",
+                map: map,
+
+            });
+            const views = [view, view1];
+            let active;
+
+            const sync = (source) => {
+                if (!active || !active.viewpoint || active !== source) {
+                    return;
+                }
+
+                for (const view of views) {
+                    if (view !== active) {
+                        view.viewpoint = active.viewpoint;
+                    }
+                }
+            };
+
+            for (const view of views) {
+                view.watch(["interacting", "animation"], () => {
+                    active = view;
+                    sync(active);
+                });
+
+                view.watch("viewpoint", () => sync(view));
+            }
+
+
+
+
+            const searchWidget = new Search({
+                view: view
+            });
+
+            // Add the search widget to the top right corner of the view
+            view.ui.add(searchWidget, {
+                position: "top-right"
+            });
+            var layer = new FeatureLayer({
+                url:"https://sampleserver6.arcgisonline.com/arcgis/rest/services/SampleWorldCities/MapServer"
+
+            });
+
+            // Add layer to map
+            let layerList = new LayerList({
+                view: view
+            });
+            // Adds widget below other elements in the top left corner of the view
+            view.ui.add(layerList, {
+                position: "top-left"
+            });
+            map.add(layer);
+
+            view.ui.add(
+                new Legend({
+                    view: view
+                }),
+                "bottom-right"
+            );
+            const toggle = new BasemapToggle({
+                // 2 - Set properties
+                view: view, // view that provides access to the map's 'topo-vector' basemap
+                nextBasemap: "dark-gray-vector" // allows for toggling to the 'hybrid' basemap
+            });
+
+            view.ui.add(toggle, "bottom-left");
+        });
+    </script>
+</head>
+
+<body>
+<h1 align="center">Poverty Station in the southeast U.S.</h1>
+<div id="viewDiv" style="float: left; width: 65%; height: 95%"></div>
+<div id="view1Div" style="float: left; width: 35%; height: 95%"></div>
+</body>
+</html>
